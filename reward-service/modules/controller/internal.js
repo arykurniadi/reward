@@ -1,12 +1,18 @@
-const { EventEmitter } = require("events");
-const config = require("../../config");
-const { getClient } = require("../../db");
-const { minioClient } = require("../../lib/minio");
-const jwt = require("jsonwebtoken");
+const { EventEmitter } = require('events');
+const config = require('../../config');
+const { getClient } = require('../../db');
+const { minioClient } = require('../../lib/minio');
+const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
-const { check } = require("express-validator");
-const { listObjectAsync, presignedGetObjectAsync, uploadFileAsync } = require('../../util/minio');
+const { check } = require('express-validator');
+const logger = require('../../util/logger');
+const {
+  uploadFileAsync,
+  bucketExists,
+  createBucket,
+  setBucketPolicy,
+} = require('../../util/minio');
 
 class InternalController extends EventEmitter {
   constructor(userService) {
@@ -19,7 +25,7 @@ class InternalController extends EventEmitter {
       const service = `${config.app.name} v${config.app.version}`;
       const environment = config.app.env;
 
-      let status = "OK";
+      let status = 'OK';
       const errors = [];
 
       // check mongodb
@@ -27,18 +33,18 @@ class InternalController extends EventEmitter {
       try {
         const testMongodb = await checkMongodb();
         if (testMongodb) {
-          mongodb = "OK";
+          mongodb = 'OK';
         } else {
-          mongodb = "DOWN";
+          mongodb = 'DOWN';
         }
       } catch (e) {
         errors.push({
-          service: "mongodb",
+          service: 'mongodb',
           error: e.message,
         });
 
-        mongodb = "DOWN";
-        status = "WARNING";
+        mongodb = 'DOWN';
+        status = 'WARNING';
       }
 
       // check minio
@@ -82,17 +88,44 @@ class InternalController extends EventEmitter {
 
   async uploadFile(req, res, next) {
     try {
-      // const filePath = path.join(__dirname, '../../tmp/wide4.jpeg');
-      // const fileBlob = fs.readFileSync(filePath);
-      // const fileKey = 'reward/reward-img-1.jpeg';
-
-      // const upload = await uploadFileAsync(fileKey, fileBlob);
-      // console.log('--> upload', upload);
-
-      console.log('--> upload', req);
-
-
       res.success(null);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  async syncFile(req, res, next) {
+    try {
+      const directoryPath = path.join(__dirname, '../../tmp');
+
+      const bucketCheck = await bucketExists();
+      if (!bucketCheck) {
+        await createBucket();
+        await setBucketPolicy();
+      }
+
+      fs.readdir(directoryPath, (err, files) => {
+        if (err) {
+          logger.error('Error reading directory', err);
+          return;
+        }
+
+        // Process each file
+        files.forEach((file) => {
+          const filePath = path.join(directoryPath, file);
+          const blob = fs.readFileSync(filePath);
+
+          uploadFileAsync(file, blob)
+            .then((result) => {
+              logger.info('Upload file', result);
+            })
+            .catch((error) => {
+              logger.error('Error Upload file', error);
+            });
+        });
+      });
+
+      res.success({message: 'Upload file has processed'});
     } catch (e) {
       next(e);
     }

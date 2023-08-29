@@ -11,5 +11,6 @@ module.exports = (generalController) => {
 
   router.post('/v1/user', (req, res, next) => generalController.createUser(req, res, next));
   router.post('/v1/upload', (req, res, next) => generalController.uploadFile(req, res, next));
+  router.post('/v1/syncfile', (req, res, next) => generalController.syncFile(req, res, next));
   return router;
 };

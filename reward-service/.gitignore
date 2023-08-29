@@ -127,4 +127,4 @@ dist
 
 .DS_Store
 
-tmp/*
+# tmp/*
