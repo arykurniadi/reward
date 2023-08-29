@@ -9,7 +9,7 @@ RUN mkdir -p /home/node/.ssh && \
     echo "${SSH_KEY}" > /home/node/.ssh/id_rsa && \
     chmod 600 /home/node/.ssh/id_rsa
 
-COPY id_rsa_moladin.pem /home/node/.ssh/id_rsa
+COPY id_rsa.pem /home/node/.ssh/id_rsa
 
 RUN chmod 600 /home/node/.ssh/id_rsa
 
